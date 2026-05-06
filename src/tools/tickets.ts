@@ -89,7 +89,7 @@ export function registerTicketTools(server: McpServer, client: AteraClient) {
 
   server.tool(
     "list_ticket_comments",
-    "Get all comments/replies on a ticket.",
+    "Get all comments/replies on a ticket including internal notes. Each item has an IsInternal flag distinguishing internal engineer notes from customer-facing replies.",
     {
       ticketId: z.number().describe("The ticket ID"),
       page: z.number().optional().describe("Page number (default 1)"),
@@ -100,6 +100,38 @@ export function registerTicketTools(server: McpServer, client: AteraClient) {
         const result = await client.getList<unknown>(
           `/api/v3/tickets/${ticketId}/comments`,
           params,
+        );
+        return formatResponse(result);
+      } catch (error) {
+        return formatError(error);
+      }
+    },
+  );
+
+  server.tool(
+    "add_ticket_comment",
+    "Add a comment to a ticket. Set IsInternal=true for an internal engineer note (not visible to the customer); false (default) for a customer-facing reply.",
+    {
+      ticketId: z.number().describe("The ticket ID"),
+      Comment: z.string().describe("The comment body. HTML allowed."),
+      IsInternal: z
+        .boolean()
+        .optional()
+        .describe(
+          "true = internal note (engineers only); false = customer-facing reply. Default false.",
+        ),
+      TechnicianContactID: z
+        .number()
+        .optional()
+        .describe(
+          "Technician contact ID to attribute the comment to. Defaults to the API key owner if omitted.",
+        ),
+    },
+    async ({ ticketId, ...body }) => {
+      try {
+        const result = await client.post<unknown>(
+          `/api/v3/tickets/${ticketId}/comments`,
+          body,
         );
         return formatResponse(result);
       } catch (error) {
